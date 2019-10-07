@@ -9,7 +9,8 @@ import {NgbDropdownConfig} from '@ng-bootstrap/ng-bootstrap';
 export class NgbdDropdownConfig {
   constructor(config: NgbDropdownConfig) {
     // customize default values of dropdowns used by this component tree
-    config.placement = 'top-left';
+    // config.placement = 'top-left';
     config.autoClose = false;
+    config.container = 'body';
   }
 }

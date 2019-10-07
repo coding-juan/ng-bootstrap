@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import {NgbDropdownConfig} from './dropdown-config';
 import {positionElements, PlacementArray, Placement} from '../util/positioning';
+import {DOCUMENT} from '@angular/common';
 
 /**
  */
@@ -26,12 +27,12 @@ export class NgbDropdownMenu {
 
   constructor(
       @Inject(forwardRef(() => NgbDropdown)) public dropdown, private _elementRef: ElementRef,
-      private _renderer: Renderer2) {}
+      private _renderer: Renderer2, @Inject(DOCUMENT) private _document: any) {}
 
   isEventFrom($event) { return this._elementRef.nativeElement.contains($event.target); }
 
-  position(triggerEl, placement) {
-    this.applyPlacement(positionElements(triggerEl, this._elementRef.nativeElement, placement));
+  position(triggerEl, placement, container, element) {
+    this.applyPlacement(positionElements(triggerEl, element || this._elementRef.nativeElement, placement, container));
   }
 
   applyPlacement(_placement: Placement) {
@@ -47,6 +48,32 @@ export class NgbDropdownMenu {
       this._renderer.addClass(this._elementRef.nativeElement.parentNode, 'dropup');
     } else {
       this._renderer.addClass(this._elementRef.nativeElement.parentNode, 'dropdown');
+    }
+  }
+
+  applyContainer(container: null | 'body' = null, element) {
+    this.resetContainer(element);
+    if (container === 'body') {
+      const renderer = this._renderer;
+      const dropdownMenuElement = this._elementRef.nativeElement;
+      const bodyContainer = element = element || renderer.createElement('div');
+
+      // Override some styles to have the positionning working
+      renderer.setStyle(bodyContainer, 'position', 'absolute');
+      renderer.setStyle(dropdownMenuElement, 'position', 'static');
+      renderer.setStyle(bodyContainer, 'z-index', '1050');
+
+      renderer.appendChild(bodyContainer, dropdownMenuElement);
+      renderer.appendChild(this._document.body, bodyContainer);
+      return bodyContainer;
+    }
+  }
+
+  resetContainer(_bodyContainer) {
+    if (_bodyContainer) {
+      this._renderer.removeChild(this._document.body, _bodyContainer);
+      _bodyContainer = null;
+      return _bodyContainer;
     }
   }
 }
@@ -107,6 +134,7 @@ export class NgbDropdownToggle extends NgbDropdownAnchor {
 })
 export class NgbDropdown implements OnInit {
   private _zoneSubscription: any;
+  private _bodyContainer: HTMLElement;
 
   @ContentChild(NgbDropdownMenu) private _menu: NgbDropdownMenu;
 
@@ -134,6 +162,8 @@ export class NgbDropdown implements OnInit {
    */
   @Input() placement: PlacementArray;
 
+  @Input() container: null | 'body';
+
   /**
    *  An event fired when the dropdown is opened or closed.
    *  Event's payload equals whether dropdown is open.
@@ -143,6 +173,7 @@ export class NgbDropdown implements OnInit {
   constructor(config: NgbDropdownConfig, ngZone: NgZone) {
     this.placement = config.placement;
     this.autoClose = config.autoClose;
+    this.container = config.container;
     this._zoneSubscription = ngZone.onStable.subscribe(() => { this._positionMenu(); });
   }
 
@@ -163,6 +194,7 @@ export class NgbDropdown implements OnInit {
   open(): void {
     if (!this._open) {
       this._open = true;
+      this._bodyContainer = this._menu.applyContainer(this.container, this._bodyContainer);
       this._positionMenu();
       this.openChange.emit(true);
     }
@@ -174,6 +206,8 @@ export class NgbDropdown implements OnInit {
   close(): void {
     if (this._open) {
       this._open = false;
+
+      this._bodyContainer = this._menu.resetContainer(this._bodyContainer);
       this.openChange.emit(false);
     }
   }
@@ -207,7 +241,10 @@ export class NgbDropdown implements OnInit {
     }
   }
 
-  ngOnDestroy() { this._zoneSubscription.unsubscribe(); }
+  ngOnDestroy() {
+    this._zoneSubscription.unsubscribe();
+    this._bodyContainer = this._menu.resetContainer(this._bodyContainer);
+  }
 
   private _isEventFromToggle($event) { return this._anchor.isEventFrom($event); }
 
@@ -215,7 +252,9 @@ export class NgbDropdown implements OnInit {
 
   private _positionMenu() {
     if (this.isOpen() && this._menu) {
-      this._menu.position(this._anchor.anchorEl, this.placement);
+      this._menu.position(
+          this._anchor.anchorEl, this.placement, this.container === 'body',
+          this.container === 'body' ? this._bodyContainer : null);
     }
   }
 }
