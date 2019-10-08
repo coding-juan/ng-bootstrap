@@ -7,12 +7,15 @@ export declare class NgbDropdownMenu {
     dropdown: any;
     private _elementRef;
     private _renderer;
+    private _document;
     placement: Placement;
     isOpen: boolean;
-    constructor(dropdown: any, _elementRef: ElementRef, _renderer: Renderer2);
+    constructor(dropdown: any, _elementRef: ElementRef, _renderer: Renderer2, _document: any);
     isEventFrom($event: any): any;
-    position(triggerEl: any, placement: any, container: any): void;
+    position(triggerEl: any, placement: any, container: any, element: any): void;
     applyPlacement(_placement: Placement): void;
+    applyContainer(container: null | 'body', element: any): any;
+    resetContainer(_bodyContainer: any): any;
 }
 /**
  * Marks an element to which dropdown menu will be anchored. This is a simple version
@@ -42,6 +45,7 @@ export declare class NgbDropdownToggle extends NgbDropdownAnchor {
  */
 export declare class NgbDropdown implements OnInit {
     private _zoneSubscription;
+    private _bodyContainer;
     private _menu;
     private _anchor;
     /**

@@ -11,19 +11,21 @@ var __extends = (this && this.__extends) || (function () {
 import { forwardRef, Inject, Directive, Input, Output, EventEmitter, ElementRef, ContentChild, NgZone, Renderer2 } from '@angular/core';
 import { NgbDropdownConfig } from './dropdown-config';
 import { positionElements } from '../util/positioning';
+import { DOCUMENT } from '@angular/common';
 /**
  */
 var NgbDropdownMenu = (function () {
-    function NgbDropdownMenu(dropdown, _elementRef, _renderer) {
+    function NgbDropdownMenu(dropdown, _elementRef, _renderer, _document) {
         this.dropdown = dropdown;
         this._elementRef = _elementRef;
         this._renderer = _renderer;
+        this._document = _document;
         this.placement = 'bottom';
         this.isOpen = false;
     }
     NgbDropdownMenu.prototype.isEventFrom = function ($event) { return this._elementRef.nativeElement.contains($event.target); };
-    NgbDropdownMenu.prototype.position = function (triggerEl, placement, container) {
-        this.applyPlacement(positionElements(triggerEl, this._elementRef.nativeElement, placement, container));
+    NgbDropdownMenu.prototype.position = function (triggerEl, placement, container, element) {
+        this.applyPlacement(positionElements(triggerEl, element || this._elementRef.nativeElement, placement, container));
     };
     NgbDropdownMenu.prototype.applyPlacement = function (_placement) {
         // remove the current placement classes
@@ -41,6 +43,29 @@ var NgbDropdownMenu = (function () {
             this._renderer.addClass(this._elementRef.nativeElement.parentNode, 'dropdown');
         }
     };
+    NgbDropdownMenu.prototype.applyContainer = function (container, element) {
+        if (container === void 0) { container = null; }
+        this.resetContainer(element);
+        if (container === 'body') {
+            var renderer = this._renderer;
+            var dropdownMenuElement = this._elementRef.nativeElement;
+            var bodyContainer = element = element || renderer.createElement('div');
+            // Override some styles to have the positionning working
+            renderer.setStyle(bodyContainer, 'position', 'absolute');
+            renderer.setStyle(dropdownMenuElement, 'position', 'static');
+            renderer.setStyle(bodyContainer, 'z-index', '1050');
+            renderer.appendChild(bodyContainer, dropdownMenuElement);
+            renderer.appendChild(this._document.body, bodyContainer);
+            return bodyContainer;
+        }
+    };
+    NgbDropdownMenu.prototype.resetContainer = function (_bodyContainer) {
+        if (_bodyContainer) {
+            this._renderer.removeChild(this._document.body, _bodyContainer);
+            _bodyContainer = null;
+            return _bodyContainer;
+        }
+    };
     NgbDropdownMenu.decorators = [
         { type: Directive, args: [{
                     selector: '[ngbDropdownMenu]',
@@ -52,6 +77,7 @@ var NgbDropdownMenu = (function () {
         { type: undefined, decorators: [{ type: Inject, args: [forwardRef(function () { return NgbDropdown; }),] },] },
         { type: ElementRef, },
         { type: Renderer2, },
+        { type: undefined, decorators: [{ type: Inject, args: [DOCUMENT,] },] },
     ]; };
     return NgbDropdownMenu;
 }());
@@ -162,6 +188,7 @@ var NgbDropdown = (function () {
     function () {
         if (!this._open) {
             this._open = true;
+            this._bodyContainer = this._menu.applyContainer(this.container, this._bodyContainer);
             this._positionMenu();
             this.openChange.emit(true);
         }
@@ -178,6 +205,7 @@ var NgbDropdown = (function () {
     function () {
         if (this._open) {
             this._open = false;
+            this._bodyContainer = this._menu.resetContainer(this._bodyContainer);
             this.openChange.emit(false);
         }
     };
@@ -216,12 +244,15 @@ var NgbDropdown = (function () {
             this.close();
         }
     };
-    NgbDropdown.prototype.ngOnDestroy = function () { this._zoneSubscription.unsubscribe(); };
+    NgbDropdown.prototype.ngOnDestroy = function () {
+        this._zoneSubscription.unsubscribe();
+        this._bodyContainer = this._menu.resetContainer(this._bodyContainer);
+    };
     NgbDropdown.prototype._isEventFromToggle = function ($event) { return this._anchor.isEventFrom($event); };
     NgbDropdown.prototype._isEventFromMenu = function ($event) { return this._menu ? this._menu.isEventFrom($event) : false; };
     NgbDropdown.prototype._positionMenu = function () {
         if (this.isOpen() && this._menu) {
-            this._menu.position(this._anchor.anchorEl, this.placement, this.container === 'body');
+            this._menu.position(this._anchor.anchorEl, this.placement, this.container === 'body', this.container === 'body' ? this._bodyContainer : null);
         }
     };
     NgbDropdown.decorators = [
